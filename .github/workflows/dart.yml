@@ -9,11 +9,19 @@ permissions:
 jobs:
   build-ios:
     name: iOS Build
-    runs-on: macos-15
+    runs-on: macos-26
     steps:
       - uses: actions/checkout@v4
         with:
           submodules: recursive
+
+      - name: Select Xcode 26
+        run: |
+          ls /Applications | grep -i xcode
+          XC=$(ls -d /Applications/Xcode_26*.app 2>/dev/null | sort -V | tail -n 1)
+          echo "Using: $XC"
+          sudo xcode-select -s "$XC/Contents/Developer"
+          xcodebuild -version
 
       - name: Show schemes
         working-directory: app
