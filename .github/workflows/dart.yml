@@ -19,9 +19,13 @@ jobs:
         working-directory: app
         run: xcodebuild -list -project Madeira.xcodeproj
 
+      - name: Create vcruntime placeholder
+        run: mkdir -p app/Madeira/x86_64-vcruntime
+
       - name: Build (no codesign)
         working-directory: app
         run: |
+          set -o pipefail
           xcodebuild -project Madeira.xcodeproj \
             -scheme Madeira \
             -configuration Release \
@@ -30,11 +34,15 @@ jobs:
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGN_IDENTITY="" \
-            clean build
+            clean build 2>&1 | tee build.log || true
+          echo "=========== ERRORS ==========="
+          grep -E "error:|fatal error|ld:|Undefined symbols" build.log | sort -u | head -n 40
+          exit ${PIPESTATUS[0]}
 
       - name: Package IPA
         run: |
           APP=$(find app/build/Build/Products -name "*.app" -maxdepth 2 | head -n 1)
+          echo "Found: $APP"
           mkdir Payload
           cp -R "$APP" Payload/
           zip -qq -r -9 Madeira.ipa Payload
