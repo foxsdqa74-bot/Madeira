@@ -49,11 +49,24 @@ jobs:
 
       - name: Package IPA
         run: |
-          APP=$(find app/build/Build/Products -name "*.app" -maxdepth 2 | head -n 1)
-          echo "Found: $APP"
+          echo "Contents of Products:"
+          ls -la app/build/Build/Products/*/ || true
+
+          APP=$(find app/build/Build/Products -maxdepth 3 -name "*.app" -type d | head -n 1)
+          echo "Using app: $APP"
+
+          echo "Contents of app:"
+          ls -la "$APP"
+
+          EXE=$(/usr/libexec/PlistBuddy -c "Print :CFBundleExecutable" "$APP/Info.plist")
+          echo "Executable name: $EXE"
+          test -f "$APP/$EXE" || { echo "EXECUTABLE MISSING"; exit 1; }
+          ls -lh "$APP/$EXE"
+
           mkdir Payload
           cp -R "$APP" Payload/
           zip -qq -r -9 Madeira.ipa Payload
+          ls -lh Madeira.ipa
 
       - name: Upload to release
         uses: svenstaro/upload-release-action@v2
