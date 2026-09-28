@@ -9,7 +9,7 @@ permissions:
 jobs:
   build-ios:
     name: Build unsigned IPA
-    runs-on: macos-15
+    runs-on: macos-26
 
     steps:
       - name: Checkout (with submodules)
@@ -30,7 +30,7 @@ jobs:
       - name: Build
         working-directory: app
         run: |
-          set -o pipefail
+          set +e
           xcodebuild -project Madeira.xcodeproj \
             -scheme Madeira \
             -configuration Release \
@@ -39,10 +39,16 @@ jobs:
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGN_IDENTITY="" \
-            clean build 2>&1 | tee build.log || true
-          echo "=========== ERRORS ==========="
-          grep -E "error:|fatal error|ld:|Undefined symbols" build.log | sort -u | head -n 40
-          exit ${PIPESTATUS[0]}
+            clean build > build.log 2>&1
+          STATUS=$?
+          echo "xcodebuild exit code: $STATUS"
+          if [ $STATUS -ne 0 ]; then
+            echo "=========== REAL ERRORS ==========="
+            grep -E "^/.*:[0-9]+:[0-9]+: error:|^error:|^ld: |Undefined symbols|BUILD FAILED|failed with a nonzero exit code" build.log | sort -u | head -n 40
+            echo "=========== LAST 60 LINES ==========="
+            tail -n 60 build.log
+          fi
+          exit $STATUS
 
       - name: Package IPA
         run: |
