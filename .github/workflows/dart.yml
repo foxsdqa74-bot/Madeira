@@ -1,4 +1,4 @@
-name: iOS-ipa-build
+name: Madeira iOS Build
 
 on:
   workflow_dispatch:
@@ -8,29 +8,26 @@ permissions:
 
 jobs:
   build-ios:
-    name: iOS Build
+    name: Build unsigned IPA
     runs-on: macos-26
+
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout (with submodules)
+        uses: actions/checkout@v4
         with:
           submodules: recursive
 
       - name: Select Xcode 26
         run: |
-          ls /Applications | grep -i xcode
           XC=$(ls -d /Applications/Xcode_26*.app 2>/dev/null | sort -V | tail -n 1)
           echo "Using: $XC"
           sudo xcode-select -s "$XC/Contents/Developer"
           xcodebuild -version
 
-      - name: Show schemes
-        working-directory: app
-        run: xcodebuild -list -project Madeira.xcodeproj
-
       - name: Create vcruntime placeholder
         run: mkdir -p app/Madeira/x86_64-vcruntime
 
-      - name: Build (no codesign)
+      - name: Build
         working-directory: app
         run: |
           set -o pipefail
@@ -49,26 +46,26 @@ jobs:
 
       - name: Package IPA
         run: |
-          echo "Contents of Products:"
-          ls -la app/build/Build/Products/*/ || true
-
           APP=$(find app/build/Build/Products -maxdepth 3 -name "*.app" -type d | head -n 1)
           echo "Using app: $APP"
-
-          echo "Contents of app:"
           ls -la "$APP"
 
           EXE=$(/usr/libexec/PlistBuddy -c "Print :CFBundleExecutable" "$APP/Info.plist")
-          echo "Executable name: $EXE"
+          echo "Executable: $EXE"
           test -f "$APP/$EXE" || { echo "EXECUTABLE MISSING"; exit 1; }
-          ls -lh "$APP/$EXE"
 
           mkdir Payload
           cp -R "$APP" Payload/
           zip -qq -r -9 Madeira.ipa Payload
           ls -lh Madeira.ipa
 
-      - name: Upload to release
+      - name: Upload IPA as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Madeira-ipa
+          path: Madeira.ipa
+
+      - name: Upload IPA to release
         uses: svenstaro/upload-release-action@v2
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
