@@ -3,46 +3,46 @@ name: iOS-ipa-build
 on:
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build-ios:
-    name: 🎉 iOS Build
+    name: iOS Build
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
 
-      - uses: subosito/flutter-action@v2
-        with:
-          channel: 'stable'
+      - name: Show schemes
+        working-directory: app
+        run: xcodebuild -list -project Madeira.xcodeproj
 
-      - name: Install dependencies
-        # IF your app is inside a subfolder, uncomment the line below and change 'YOUR_FOLDER_NAME'
-        # working-directory: YOUR_FOLDER_NAME
-        run: flutter pub get
-
-      - name: CocoaPods update
-        # IF your app is inside a subfolder, update the path below (e.g., YOUR_FOLDER_NAME/ios)
-        working-directory: ios
-        run: pod repo update
-
-      - name: Build iOS App
-        # IF your app is inside a subfolder, uncomment the line below and change 'YOUR_FOLDER_NAME'
-        # working-directory: YOUR_FOLDER_NAME
-        run: flutter build ios --release --no-codesign
+      - name: Build (no codesign)
+        working-directory: app
+        run: |
+          xcodebuild -project Madeira.xcodeproj \
+            -scheme Madeira \
+            -configuration Release \
+            -sdk iphoneos \
+            -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            clean build
 
       - name: Package IPA
-        # IF your app is inside a subfolder, update the path below (e.g., YOUR_FOLDER_NAME/build/ios/iphoneos)
-        working-directory: build/ios/iphoneos
         run: |
+          APP=$(find app/build/Build/Products -name "*.app" -maxdepth 2 | head -n 1)
+          echo "Found: $APP"
           mkdir Payload
-          mv Runner.app Payload/
-          zip -qq -r -9 FlutterIpaExport.ipa Payload
+          cp -R "$APP" Payload/
+          zip -qq -r -9 Madeira.ipa Payload
 
-      - name: Upload binaries to release
+      - name: Upload to release
         uses: svenstaro/upload-release-action@v2
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
-          # IF your app is inside a subfolder, update the path below (e.g., YOUR_FOLDER_NAME/build/ios/iphoneos/FlutterIpaExport.ipa)
-          file: build/ios/iphoneos/FlutterIpaExport.ipa
+          file: Madeira.ipa
           tag: v1.0
           overwrite: true
-          body: "This is first release"
+          body: "Unsigned build"
