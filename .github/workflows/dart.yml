@@ -12,6 +12,8 @@ jobs:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          submodules: recursive
 
       - name: Show schemes
         working-directory: app
@@ -33,7 +35,6 @@ jobs:
       - name: Package IPA
         run: |
           APP=$(find app/build/Build/Products -name "*.app" -maxdepth 2 | head -n 1)
-          echo "Found: $APP"
           mkdir Payload
           cp -R "$APP" Payload/
           zip -qq -r -9 Madeira.ipa Payload
